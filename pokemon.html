@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pokémon Data</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.2/css/jquery.dataTables.min.css">
+</head>
+<body>
+  <table id="pokemonTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Height</th>
+        <th>Weight</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.2/js/jquery.dataTables.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      var batchSize = 50;
+      var totalPokemon = 898; // Total semua pokemon di API
+
+      // Fetch Pokemon
+      function fetchPokemonData(startIndex) {
+        var endIndex = Math.min(startIndex + batchSize, totalPokemon);
+
+        var promises = [];
+        for (var i = startIndex; i < endIndex; i++) {
+          var url = 'https://pokeapi.co/api/v2/pokemon/' + (i + 1);
+          promises.push(
+            $.ajax({
+              url: url,
+              dataType: 'json',
+              cache: true
+            })
+          );
+        }
+
+        return Promise.all(promises);
+      }
+
+      // Fetch Pokemon + table
+      fetchPokemonData(0).then(function(results) {
+        var pokemonData = results.map(function(result) {
+          return {
+            name: result.name,
+            height: result.height,
+            weight: result.weight
+          };
+        });
+
+        $('#pokemonTable').DataTable({
+          data: pokemonData,
+          columns: [
+            { data: 'name' },
+            { data: 'height' },
+            { data: 'weight' }
+          ]
+        });
+      });
+    });
+  </script>
+</body>
+</html>
