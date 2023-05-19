@@ -1,66 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pokémon Data</title>
-  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.2/css/jquery.dataTables.min.css">
+  <title>Pokémon Search</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css">
 </head>
 <body>
-  <table id="pokemonTable">
+  <form id="searchForm">
+    <input type="text" id="pokemonName" placeholder="Enter Pokémon Name or ID">
+    <button type="submit">Search</button>
+  </form>
+
+  <table id="pokemonTable" class="display">
     <thead>
       <tr>
+        <th>ID</th>
         <th>Name</th>
-        <th>Height</th>
-        <th>Weight</th>
+        <th>Type</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.11.2/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
   <script>
     $(document).ready(function() {
-      var batchSize = 50;
-      var totalPokemon = 898; // Total semua pokemon di API
+      var table = $('#pokemonTable').DataTable();
 
-      // Fetch Pokemon
-      function fetchPokemonData(startIndex) {
-        var endIndex = Math.min(startIndex + batchSize, totalPokemon);
+      // Fetch Pokemon + populate table
+      function fetchPokemonData() {
+        var apiUrl = 'https://pokeapi.co/api/v2/pokemon?limit=898';
+        $.ajax({
+          url: apiUrl,
+          method: 'GET',
+          success: function(data) {
+            var pokemonData = data.results.map(function(pokemon) {
+              var url = pokemon.url;
+              return $.ajax({
+                url: url,
+                method: 'GET'
+              });
+            });
 
-        var promises = [];
-        for (var i = startIndex; i < endIndex; i++) {
-          var url = 'https://pokeapi.co/api/v2/pokemon/' + (i + 1);
-          promises.push(
-            $.ajax({
-              url: url,
-              dataType: 'json',
-              cache: true
-            })
-          );
-        }
+            Promise.all(pokemonData).then(function(results) {
+              var pokemonDetails = results.map(function(result) {
+                return [result.id, result.name, result.types.map(type => type.type.name).join(', ')];
+              });
 
-        return Promise.all(promises);
+              table.clear().rows.add(pokemonDetails).draw();
+            });
+          },
+          error: function() {
+            alert('Failed to fetch Pokémon data.');
+          }
+        });
       }
 
-      // Fetch Pokemon + table
-      fetchPokemonData(0).then(function(results) {
-        var pokemonData = results.map(function(result) {
-          return {
-            name: result.name,
-            height: result.height,
-            weight: result.weight
-          };
-        });
+      fetchPokemonData();
 
-        $('#pokemonTable').DataTable({
-          data: pokemonData,
-          columns: [
-            { data: 'name' },
-            { data: 'height' },
-            { data: 'weight' }
-          ]
-        });
+      // Form Validasi + Search
+      $('#searchForm').submit(function(event) {
+        event.preventDefault();
+
+        var pokemonName = $('#pokemonName').val().trim();
+        if (pokemonName === '') {
+          // Jika kosong maka mengisi kembali tablenya
+          fetchPokemonData();
+          return;
+        }
+
+        searchPokemon(pokemonName);
       });
+
+      // Function to search for Pokémon
+      function searchPokemon(pokemonName) {
+        var apiUrl = 'https://pokeapi.co/api/v2/pokemon/' + pokemonName.toLowerCase();
+        $.ajax({
+          url: apiUrl,
+          method: 'GET',
+          success: function(data) {
+            table.clear().draw();
+
+            table.row.add([data.id, data.name, data.types.map(type => type.type.name).join(', ')]).draw();
+          },
+          error: function() {
+            alert('Pokémon not found. Please enter a valid Pokémon name or ID.');
+          }
+        });
+      }
     });
   </script>
 </body>
